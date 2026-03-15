@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, FileText, FolderPlus, Users } from 'lucide-react';
+import { Plus, FileText, FolderPlus, Users, Folder as FolderIcon } from 'lucide-react';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { useScriptStore } from '@/stores/useScriptStore';
 import { useFolderStore } from '@/stores/useFolderStore';
@@ -22,13 +22,14 @@ export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const hydrated = useHydration();
   const { getProject } = useProjectStore();
-  const { scripts, createScript, deleteScript, deleteScriptsByFolder } = useScriptStore();
+  const { scripts, createScript, deleteScript, deleteScriptsByFolder, moveScript } = useScriptStore();
   const { folders, createFolder, deleteFolder } = useFolderStore();
 
   const [createMode, setCreateMode] = useState<CreateMode>(null);
   const [newName, setNewName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'script' | 'folder'; id: string } | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [moveScriptId, setMoveScriptId] = useState<string | null>(null);
 
   const project = getProject(projectId);
   const projectFolders = folders.filter((f) => f.projectId === projectId);
@@ -133,6 +134,7 @@ export default function ProjectPage() {
                 blockCount={script.blocks.length}
                 updatedAt={script.updatedAt}
                 onDelete={() => setDeleteTarget({ type: 'script', id: script.id })}
+                onMove={() => setMoveScriptId(script.id)}
               />
             ))}
           </AnimatedList>
@@ -208,6 +210,52 @@ export default function ProjectPage() {
             : 'この脚本を削除しますか？この操作は取り消せません。'
         }
       />
+
+      {/* Move script modal */}
+      <Modal
+        isOpen={!!moveScriptId}
+        onClose={() => setMoveScriptId(null)}
+        title="脚本を移動"
+      >
+        <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
+          {/* Root (no folder) - only show when script is currently in a folder */}
+          {moveScriptId && scripts.find((s) => s.id === moveScriptId)?.folderId !== null && (
+            <button
+              onClick={() => {
+                moveScript(moveScriptId!, null);
+                setMoveScriptId(null);
+              }}
+              className="flex items-center gap-3 rounded-lg bg-bg-tertiary p-3 text-left hover:bg-bg-elevated transition-colors"
+            >
+              <FileText size={18} className="text-text-secondary" />
+              <span className="text-text-primary text-sm">ルート（フォルダなし）</span>
+            </button>
+          )}
+          {projectFolders
+            .filter((f) => {
+              const s = scripts.find((s) => s.id === moveScriptId);
+              return s?.folderId !== f.id;
+            })
+            .map((folder) => (
+              <button
+                key={folder.id}
+                onClick={() => {
+                  moveScript(moveScriptId!, folder.id);
+                  setMoveScriptId(null);
+                }}
+                className="flex items-center gap-3 rounded-lg bg-bg-tertiary p-3 text-left hover:bg-bg-elevated transition-colors"
+              >
+                <FolderIcon size={18} className="text-accent" />
+                <span className="text-text-primary text-sm">{folder.name}</span>
+              </button>
+            ))}
+          {projectFolders.length === 0 && (
+            <p className="text-text-muted text-sm text-center py-4">
+              移動先のフォルダがありません
+            </p>
+          )}
+        </div>
+      </Modal>
 
       <TabBar />
     </div>

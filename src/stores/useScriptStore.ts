@@ -12,6 +12,7 @@ interface ScriptState {
   deleteScriptsByProject: (projectId: string) => void;
   deleteScriptsByFolder: (folderId: string) => void;
   renameScript: (id: string, title: string) => void;
+  moveScript: (id: string, folderId: string | null) => void;
   getScript: (id: string) => Script | undefined;
   getScriptsByProject: (projectId: string) => Script[];
   getScriptsByFolder: (folderId: string) => Script[];
@@ -50,6 +51,12 @@ export const useScriptStore = create<ScriptState>()(
         set((state) => ({
           scripts: state.scripts.map((s) =>
             s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s
+          ),
+        })),
+      moveScript: (id, folderId) =>
+        set((state) => ({
+          scripts: state.scripts.map((s) =>
+            s.id === id ? { ...s, folderId, updatedAt: new Date().toISOString() } : s
           ),
         })),
       getScript: (id) => get().scripts.find((s) => s.id === id),

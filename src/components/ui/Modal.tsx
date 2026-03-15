@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, type PanInfo } from 'framer-motion';
 
 interface ModalProps {
@@ -12,6 +12,7 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const dragControls = useDragControls();
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -30,6 +31,28 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       document.body.style.overflow = '';
     };
   }, [isOpen, handleKeyDown]);
+
+  // Adjust for virtual keyboard on mobile
+  useEffect(() => {
+    if (!isOpen) {
+      setKeyboardOffset(0);
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleResize = () => {
+      const offset = window.innerHeight - vv.height;
+      setKeyboardOffset(offset > 0 ? offset : 0);
+    };
+
+    vv.addEventListener('resize', handleResize);
+    vv.addEventListener('scroll', handleResize);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      vv.removeEventListener('scroll', handleResize);
+    };
+  }, [isOpen]);
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     // Close if dragged down more than 80px or with fast velocity
@@ -54,7 +77,12 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           {/* Sheet */}
           <motion.div
             className="relative w-full max-w-md rounded-t-2xl bg-bg-secondary p-5 pb-[calc(1.25rem+var(--safe-area-bottom))]"
-            style={{ boxShadow: 'var(--shadow-modal)' }}
+            style={{
+              boxShadow: 'var(--shadow-modal)',
+              marginBottom: keyboardOffset,
+              maxHeight: keyboardOffset > 0 ? `calc(100dvh - ${keyboardOffset}px)` : undefined,
+              overflowY: keyboardOffset > 0 ? 'auto' as const : undefined,
+            }}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
